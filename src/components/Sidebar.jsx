@@ -16,7 +16,7 @@ import { useEffect } from 'react';
 import {
   LayoutDashboard, Package, ShoppingCart,
   Clock, Users, LogOut, ChevronRight, Moon, Sun, Languages,
-  Shield, Briefcase, Landmark,
+  Shield, Briefcase, Landmark, ShieldCheck,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -31,6 +31,7 @@ const NAV = [
   { key: 'loans',     i18n: 'nav.loans',     icon: Landmark,         adminOnly: false },
   { key: 'stock',     i18n: 'nav.stock',     icon: Clock,            adminOnly: true  },
   { key: 'users',     i18n: 'nav.users',     icon: Users,            adminOnly: true  },
+  { key: 'loginHistory', i18n: 'nav.loginHistory', icon: ShieldCheck, adminOnly: true },
 ];
 
 export default function Sidebar({ current, setCurrent, user, onLogout, dark, onDarkToggle, open }) {

@@ -6,6 +6,7 @@
     "loans": "Loans",
     "stock": "Stock History",
     "users": "Users",
+    "loginHistory": "Login History",
     "settings": "Settings",
     "help": "Help & Support"
   },
@@ -353,5 +354,24 @@
     "helpDesc": "Need help? Contact your system administrator.",
     "version": "Abuki ERP v1.0",
     "builtWith": "Spring Boot + React Project"
+  },
+  "loginHistory": {
+    "label": "Login History",
+    "title": "Login History",
+    "subtitle": "See which devices and IP addresses have logged into this app",
+    "refresh": "Refresh",
+    "searchPlaceholder": "Search by email, IP, or device…",
+    "recentLogins": "Recent Logins",
+    "records": "records",
+    "user": "User",
+    "device": "Device",
+    "ipAddress": "IP Address",
+    "dateTime": "Date & Time",
+    "noResultsFilter": "No logins match your search.",
+    "noLoginsYet": "No login records yet.",
+    "loading": "Loading login history…",
+    "connectionError": "Connection Error",
+    "errorLoad": "Could not load login history. Please try again.",
+    "retry": "Retry"
   }
 }

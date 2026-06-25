@@ -22,6 +22,7 @@ import Sales        from './pages/Sales';
 import StockHistory from './pages/StockHistory';
 import UserAccess   from './pages/UserAccess';
 import Loans        from './pages/Loans';
+import LoginHistory from './pages/LoginHistory';
 
 const BACKEND = import.meta.env.VITE_API_URL?.replace('/api', '') || 'https://abuki-backend.onrender.com';
 
@@ -145,6 +146,7 @@ export default function App() {
       dashboard: <Dashboard    dark={dark} user={user} />,
       stock:     <StockHistory dark={dark} user={user} />,
       users:     <UserAccess   dark={dark} user={user} />,
+      loginHistory: <LoginHistory dark={dark} user={user} />,
     }),
   };
 

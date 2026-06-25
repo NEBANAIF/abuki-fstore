@@ -6,6 +6,7 @@
     "loans": "ብድሮች",
     "stock": "የክምችት ታሪክ",
     "users": "ተጠቃሚዎች",
+    "loginHistory": "የመግቢያ ታሪክ",
     "settings": "ቅንብሮች",
     "help": "እርዳታ እና ድጋፍ"
   },
@@ -361,5 +362,24 @@
     "helpDesc": "እርዳታ ይፈልጋሉ? ስርዓት አስተዳዳሪዎን ያነጋግሩ።",
     "version": "Abuki ERP v1.0",
     "builtWith": "Spring Boot + React ፕሮጀክት"
+  },
+  "loginHistory": {
+    "label": "የመግቢያ ታሪክ",
+    "title": "የመግቢያ ታሪክ",
+    "subtitle": "የትኞቹ መሣሪያዎች እና አይፒ አድራሻዎች ወደዚህ መተግበሪያ እንደገቡ ይመልከቱ",
+    "refresh": "አድስ",
+    "searchPlaceholder": "በኢሜይል፣ አይፒ ወይም መሣሪያ ይፍልጉ…",
+    "recentLogins": "የቅርብ ጊዜ መግቢያዎች",
+    "records": "መዝገቦች",
+    "user": "ተጠቃሚ",
+    "device": "መሣሪያ",
+    "ipAddress": "የአይፒ አድራሻ",
+    "dateTime": "ቀን እና ሰዓት",
+    "noResultsFilter": "ከማጣራትዎ ጋር የሚስማማ መግቢያ የለም።",
+    "noLoginsYet": "እስካሁን የመግቢያ መዝገብ የለም።",
+    "loading": "የመግቢያ ታሪክን በመጫን ላይ...",
+    "connectionError": "የግንኙነት ስህተት",
+    "errorLoad": "የመግቢያ ታሪክ መጫን አልተቻለም። እንደገና ይሞክሩ።",
+    "retry": "እንደገና ሞክር"
   }
 }
