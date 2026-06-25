@@ -73,12 +73,13 @@ export default function Sidebar({ current, setCurrent, user, onLogout, dark, onD
             background: dark ? 'rgba(88,166,255,.12)' : 'rgba(255,255,255,.08)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             border: dark ? '1px solid rgba(61,214,140,.25)' : '1px solid rgba(255,255,255,.12)',
+            overflow: 'hidden',
           }}>
-            <span style={{
-              fontFamily: "'Playfair Display', serif",
-              color: dark ? '#58A6FF' : '#F0F7E2',
-              fontWeight: 600, fontSize: 16, fontStyle: 'italic',
-            }}>S</span>
+            <img
+              src="/logo.png"
+              alt="Stokio logo"
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{

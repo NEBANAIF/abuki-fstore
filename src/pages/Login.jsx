@@ -35,8 +35,8 @@ export default function Login({ onLogin }) {
 
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-blue-600 dark:bg-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-            <span className="text-white font-bold text-3xl">A</span>
+          <div className="w-16 h-16 bg-blue-600 dark:bg-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg overflow-hidden">
+            <img src="/logo.png" alt="Stokio logo" className="w-full h-full object-cover" />
           </div>
           <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Abuki ERP</h1>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">የችርቻሮ ሥርዓት · Sign in to continue</p>
