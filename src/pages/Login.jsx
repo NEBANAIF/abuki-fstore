@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Eye, EyeOff, LogIn, AlertCircle } from 'lucide-react';
 import { login } from '../services/api';
+import { getDeviceFingerprint } from '../utils/deviceFingerprint';
 
 export default function Login({ onLogin }) {
   const [email, setEmail]       = useState('');
@@ -15,7 +16,7 @@ export default function Login({ onLogin }) {
     setLoading(true);
     setError('');
     try {
-      const data = await login(email, password);
+      const data = await login(email, password, getDeviceFingerprint());
       localStorage.setItem('abuki_token', data.token);
       localStorage.setItem('abuki_user', JSON.stringify({
         id: data.id, name: data.name,

@@ -1,22 +1,25 @@
 /**
  * ─────────────────────────────────────────────────────────────────────────
- *  LoginHistory.jsx — ADMIN-only device/IP audit trail
+ *  LoginHistory.jsx — ADMIN-only device registry
  *
- *  Shows every successful login: who, when, from which IP, and which
- *  browser/device (parsed from the raw User-Agent string for readability).
- *  Read-only — there is nothing to create/edit/delete here, it's an
- *  audit log, not editable data.
+ *  Shows every browser/device that has ever logged in, identified by a
+ *  client-generated fingerprint (see utils/deviceFingerprint.js). Admins
+ *  can give each device a friendly name and Allow/Disallow it.
  *
- *  Lets an admin spot an unfamiliar device/IP connecting to the app.
+ *  A disallowed device is rejected at the LOGIN step on the backend (see
+ *  AuthController) — credentials must still be correct, but a blocked
+ *  device gets a 403 instead of a token. An already-issued token for that
+ *  device keeps working until it naturally expires; blocking only stops
+ *  future logins from that browser, it isn't an instant kill-switch.
  * ─────────────────────────────────────────────────────────────────────────
  */
 import { useState, useEffect } from 'react';
 import {
   Shield, RefreshCw, XCircle, Search, ChevronLeft, ChevronRight,
-  Monitor, Smartphone, Tablet, Globe,
+  Monitor, Smartphone, Tablet, Globe, Pencil, Check, X, Lock, Unlock,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { getLoginHistory } from '../services/api';
+import { getDevices, updateDevice } from '../services/api';
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Design tokens — same palette as Sales / Loans / Stock History
@@ -39,6 +42,8 @@ const LH_CSS = `
     --green-bg:      #E1F5EE;
     --blue:          #185FA5;
     --blue-bg:       #E6F1FB;
+    --amber:         #854F0B;
+    --amber-bg:      #FAEEDA;
     --red-bg:        #FCEBEB;
     --red-border:    #F7C1C1;
     --red-text:      #791F1F;
@@ -60,6 +65,8 @@ const LH_CSS = `
     --green-bg:      #0D2B1F;
     --blue:          #58A6FF;
     --blue-bg:       #0D1F35;
+    --amber:         #F0A742;
+    --amber-bg:      #2A1C06;
     --red-bg:        #1F0D0D;
     --red-border:    #3D1515;
     --red-text:      #FF8080;
@@ -89,8 +96,8 @@ const LH_CSS = `
   .abk-lh .abk-row-hover:hover { background:var(--card-hover) !important; }
 
   .abk-lh .abk-input {
-    width:100%; border:1px solid var(--border); border-radius:10px;
-    padding:9px 12px; font-size:13px; color:var(--ink);
+    border:1px solid var(--border); border-radius:9px;
+    padding:7px 10px; font-size:13px; color:var(--ink);
     background:var(--card); outline:none;
     transition:border-color .15s, box-shadow .15s;
     font-family:'DM Sans',sans-serif;
@@ -106,17 +113,14 @@ const LH_CSS = `
   @media (max-width:767px) {
     .abk-lh-pad { padding: 1rem 0.75rem 3rem !important; }
     .abk-lh-table-wrap { overflow-x: auto !important; -webkit-overflow-scrolling: touch !important; }
-    .abk-lh-table-wrap table { min-width: 760px !important; }
+    .abk-lh-table-wrap table { min-width: 820px !important; }
     input, select, textarea { font-size: 16px !important; }
   }
 `;
 
-/* ── Very small, readable User-Agent parser ─────────────────────────────────
-   We only need a rough device/browser label for display — not a full UA
-   parsing library. The raw userAgent string is still shown on hover/tooltip
-   so nothing is hidden, this is just a friendlier summary on top of it. ── */
+/* ── Small User-Agent parser — just enough for a friendly default label ──── */
 function parseDevice(ua) {
-  if (!ua) return { label: '—', Icon: Globe };
+  if (!ua) return { label: '—', device: '', Icon: Globe };
   const s = ua.toLowerCase();
 
   let device = 'Desktop', Icon = Monitor;
@@ -137,14 +141,14 @@ function parseDevice(ua) {
   else if (s.includes('mac os')) os = 'macOS';
   else if (s.includes('linux')) os = 'Linux';
 
-  return { label: `${browser}${os ? ' · ' + os : ''}`, device, Icon };
+  return { label: `${browser}${os ? ' on ' + os : ''}`, device, Icon };
 }
 
 function fmtDateTime(iso) {
-  if (!iso) return '—';
+  if (!iso) return { date: '—', time: '' };
   try {
     const dt = new Date(iso);
-    if (isNaN(dt.getTime())) return iso;
+    if (isNaN(dt.getTime())) return { date: iso, time: '' };
     return {
       date: dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
       time: dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
@@ -153,7 +157,7 @@ function fmtDateTime(iso) {
 }
 
 /* ════════════════════════════════════════════════════════════════════════════
-   Login History page
+   Login History / Devices page
    ════════════════════════════════════════════════════════════════════════════ */
 export default function LoginHistory({ dark }) {
   const { t } = useTranslation();
@@ -166,20 +170,28 @@ export default function LoginHistory({ dark }) {
     return () => { const el = document.getElementById(id); if (el) el.remove(); };
   }, []);
 
-  const [records, setRecords] = useState([]);
+  const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState(null);
   const [search,  setSearch]  = useState('');
   const [page,    setPage]    = useState(1);
   const rowsPerPage = 20;
 
-  useEffect(() => { loadHistory(); }, []);
+  // Inline rename state
+  const [editingId, setEditingId] = useState(null);
+  const [editName,  setEditName]  = useState('');
+  const [savingId,  setSavingId]  = useState(null);
 
-  async function loadHistory() {
+  // Block/unblock confirmation modal
+  const [confirmTarget, setConfirmTarget] = useState(null); // device being toggled
+
+  useEffect(() => { loadDevices(); }, []);
+
+  async function loadDevices() {
     try {
       setLoading(true); setError(null);
-      const all = await getLoginHistory();
-      setRecords(all);
+      const all = await getDevices();
+      setDevices(all);
     } catch {
       setError(t('loginHistory.errorLoad'));
     } finally {
@@ -187,12 +199,46 @@ export default function LoginHistory({ dark }) {
     }
   }
 
-  const filtered = records.filter(r => {
+  function startEdit(device) {
+    setEditingId(device.id);
+    setEditName(device.deviceName || '');
+  }
+
+  async function saveEdit(device) {
+    const trimmed = editName.trim();
+    setSavingId(device.id);
+    try {
+      const updated = await updateDevice(device.id, { deviceName: trimmed || null });
+      setDevices(prev => prev.map(d => d.id === device.id ? updated : d));
+      setEditingId(null);
+    } catch {
+      alert(t('loginHistory.failedToRename'));
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  async function toggleBlock(device) {
+    const nextBlocked = !device.blocked;
+    setSavingId(device.id);
+    try {
+      const updated = await updateDevice(device.id, { blocked: nextBlocked });
+      setDevices(prev => prev.map(d => d.id === device.id ? updated : d));
+      setConfirmTarget(null);
+    } catch {
+      alert(t('loginHistory.failedToUpdateStatus'));
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  const filtered = devices.filter(d => {
     if (!search) return true;
     const q = search.toLowerCase();
-    return r.userEmail?.toLowerCase().includes(q)
-      || r.ipAddress?.toLowerCase().includes(q)
-      || r.userAgent?.toLowerCase().includes(q);
+    return d.userEmail?.toLowerCase().includes(q)
+      || d.deviceName?.toLowerCase().includes(q)
+      || d.lastIpAddress?.toLowerCase().includes(q)
+      || d.lastUserAgent?.toLowerCase().includes(q);
   });
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / rowsPerPage));
@@ -217,7 +263,7 @@ export default function LoginHistory({ dark }) {
         <XCircle size={38} style={{ color: 'var(--red-text)', marginBottom: 12 }} />
         <div className="abk-serif" style={{ fontSize: 16, fontWeight: 500, color: 'var(--ink)', marginBottom: 6 }}>{t('loginHistory.connectionError')}</div>
         <p style={{ color: 'var(--ink-faint)', fontSize: 12, marginBottom: 16 }}>{error}</p>
-        <button onClick={loadHistory} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 18px', background: 'var(--blue)', color: '#fff', border: 'none', borderRadius: 10, fontSize: 13, cursor: 'pointer' }}>
+        <button onClick={loadDevices} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 18px', background: 'var(--blue)', color: '#fff', border: 'none', borderRadius: 10, fontSize: 13, cursor: 'pointer' }}>
           <RefreshCw size={13} /> {t('loginHistory.retry')}
         </button>
       </div>
@@ -248,7 +294,7 @@ export default function LoginHistory({ dark }) {
             </div>
           </div>
 
-          <button onClick={loadHistory} style={{
+          <button onClick={loadDevices} style={{
             display: 'inline-flex', alignItems: 'center', gap: 5, padding: '8px 14px', marginTop: 4,
             background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 11,
             color: 'var(--ink-mid)', fontSize: 12, cursor: 'pointer', fontFamily: 'DM Sans,sans-serif',
@@ -266,7 +312,7 @@ export default function LoginHistory({ dark }) {
           <div style={{ position: 'relative', maxWidth: 360 }}>
             <Search size={14} style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-faint)', pointerEvents: 'none' }} />
             <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
-              placeholder={t('loginHistory.searchPlaceholder')} className="abk-input" style={{ paddingLeft: 34 }} />
+              placeholder={t('loginHistory.searchPlaceholder')} className="abk-input" style={{ width: '100%', paddingLeft: 34 }} />
           </div>
         </div>
 
@@ -288,7 +334,7 @@ export default function LoginHistory({ dark }) {
             <table style={{ width: '100%', minWidth: 'max-content', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: 'var(--cream-deep)', borderBottom: '1px solid var(--border)' }}>
-                  {[t('loginHistory.user'), t('loginHistory.device'), t('loginHistory.ipAddress'), t('loginHistory.dateTime')].map(h => (
+                  {[t('loginHistory.user'), t('loginHistory.deviceName'), t('loginHistory.device'), t('loginHistory.ipAddress'), t('loginHistory.lastSeen'), t('loginHistory.status'), t('loginHistory.actions')].map(h => (
                     <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 10, fontWeight: 600, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--ink-light)', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
@@ -296,25 +342,60 @@ export default function LoginHistory({ dark }) {
               <tbody>
                 {paginated.length === 0 ? (
                   <tr>
-                    <td colSpan={4} style={{ textAlign: 'center', padding: '3.5rem 0' }}>
+                    <td colSpan={7} style={{ textAlign: 'center', padding: '3.5rem 0' }}>
                       <Shield size={34} style={{ color: 'var(--border)', margin: '0 auto 10px', display: 'block' }} />
                       <p style={{ color: 'var(--ink-faint)', fontSize: 13, fontWeight: 300 }}>
                         {search ? t('loginHistory.noResultsFilter') : t('loginHistory.noLoginsYet')}
                       </p>
                     </td>
                   </tr>
-                ) : paginated.map(r => {
-                  const { label, device, Icon } = parseDevice(r.userAgent);
-                  const dt = fmtDateTime(r.loggedInAt);
+                ) : paginated.map(d => {
+                  const { label, device: deviceType, Icon } = parseDevice(d.lastUserAgent);
+                  const dt = fmtDateTime(d.lastSeenAt);
+                  const isEditing = editingId === d.id;
+                  const isSaving  = savingId === d.id;
                   return (
-                    <tr key={r.id} className="abk-row-hover" style={{ borderBottom: '1px solid var(--border-light)', background: 'var(--card)' }}>
+                    <tr key={d.id} className="abk-row-hover" style={{ borderBottom: '1px solid var(--border-light)', background: 'var(--card)' }}>
                       {/* User */}
                       <td style={{ padding: '12px 14px' }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{r.userEmail || '—'}</div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{d.userEmail || '—'}</div>
                       </td>
 
-                      {/* Device — icon + browser/OS, with full UA on hover */}
-                      <td style={{ padding: '12px 14px' }} title={r.userAgent || ''}>
+                      {/* Device Name — editable */}
+                      <td style={{ padding: '12px 14px', minWidth: 170 }}>
+                        {isEditing ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <input
+                              autoFocus
+                              value={editName}
+                              onChange={e => setEditName(e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter') saveEdit(d); if (e.key === 'Escape') setEditingId(null); }}
+                              placeholder={t('loginHistory.deviceNamePlaceholder')}
+                              className="abk-input"
+                              style={{ width: 140 }}
+                            />
+                            <button onClick={() => saveEdit(d)} disabled={isSaving} title={t('loginHistory.save')} style={{
+                              width: 26, height: 26, borderRadius: 7, border: 'none', background: 'var(--green)',
+                              color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              cursor: isSaving ? 'not-allowed' : 'pointer', opacity: isSaving ? .6 : 1, flexShrink: 0,
+                            }}><Check size={13} /></button>
+                            <button onClick={() => setEditingId(null)} title={t('loginHistory.cancel')} style={{
+                              width: 26, height: 26, borderRadius: 7, border: '1px solid var(--border)', background: 'var(--cream-deep)',
+                              color: 'var(--ink-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0,
+                            }}><X size={13} /></button>
+                          </div>
+                        ) : (
+                          <div className="abk-row-hover" style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }} onClick={() => startEdit(d)}>
+                            <span style={{ fontSize: 13, fontWeight: d.deviceName ? 600 : 400, color: d.deviceName ? 'var(--ink)' : 'var(--ink-faint)', fontStyle: d.deviceName ? 'normal' : 'italic' }}>
+                              {d.deviceName || t('loginHistory.unnamedDevice')}
+                            </span>
+                            <Pencil size={11} style={{ color: 'var(--ink-faint)', flexShrink: 0 }} />
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Browser/OS — auto-detected, read-only */}
+                      <td style={{ padding: '12px 14px' }} title={d.lastUserAgent || ''}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <div style={{
                             width: 28, height: 28, borderRadius: 8, background: 'var(--blue-bg)',
@@ -324,7 +405,7 @@ export default function LoginHistory({ dark }) {
                           </div>
                           <div>
                             <div style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--ink)' }}>{label}</div>
-                            <div style={{ fontSize: 10.5, color: 'var(--ink-faint)', fontWeight: 300 }}>{device}</div>
+                            <div style={{ fontSize: 10.5, color: 'var(--ink-faint)', fontWeight: 300 }}>{deviceType}</div>
                           </div>
                         </div>
                       </td>
@@ -332,14 +413,48 @@ export default function LoginHistory({ dark }) {
                       {/* IP Address */}
                       <td style={{ padding: '12px 14px' }}>
                         <span style={{ fontFamily: 'monospace', fontSize: 12.5, color: 'var(--ink-mid)' }}>
-                          {r.ipAddress || '—'}
+                          {d.lastIpAddress || '—'}
                         </span>
                       </td>
 
-                      {/* Date & Time */}
+                      {/* Last Seen */}
                       <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
                         <div style={{ fontSize: 12.5, color: 'var(--ink)', fontWeight: 500 }}>{dt.date}</div>
                         <div style={{ fontSize: 10.5, color: 'var(--ink-faint)', fontWeight: 300 }}>{dt.time}</div>
+                      </td>
+
+                      {/* Status badge */}
+                      <td style={{ padding: '12px 14px' }}>
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 4,
+                          padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600,
+                          background: d.blocked ? 'var(--red-bg)' : 'var(--green-bg)',
+                          color: d.blocked ? 'var(--red-text)' : 'var(--green)',
+                          border: `1px solid ${d.blocked ? 'var(--red-border)' : 'var(--border)'}`,
+                        }}>
+                          {d.blocked ? <Lock size={10} /> : <Unlock size={10} />}
+                          {d.blocked ? t('loginHistory.blocked') : t('loginHistory.allowed')}
+                        </span>
+                      </td>
+
+                      {/* Allow / Disallow action */}
+                      <td style={{ padding: '12px 14px' }}>
+                        <button
+                          onClick={() => setConfirmTarget(d)}
+                          disabled={isSaving}
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 5,
+                            padding: '7px 13px', borderRadius: 9, fontSize: 12, fontWeight: 500,
+                            border: 'none', cursor: isSaving ? 'not-allowed' : 'pointer',
+                            opacity: isSaving ? .6 : 1,
+                            background: d.blocked ? 'var(--green)' : 'var(--red-text)',
+                            color: '#fff',
+                          }}
+                        >
+                          {d.blocked
+                            ? <><Unlock size={12} /> {t('loginHistory.allow')}</>
+                            : <><Lock size={12} /> {t('loginHistory.disallow')}</>}
+                        </button>
                       </td>
                     </tr>
                   );
@@ -375,6 +490,48 @@ export default function LoginHistory({ dark }) {
         </div>
 
       </div>
+
+      {/* ── Block / Unblock confirmation modal ──────────────────────────── */}
+      {confirmTarget && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 100,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+        }} onClick={() => setConfirmTarget(null)}>
+          <div className="abk-anim-scale-in" onClick={e => e.stopPropagation()} style={{
+            background: 'var(--card)', borderRadius: 16, padding: '1.6rem',
+            maxWidth: 380, width: '100%', border: '1px solid var(--border)',
+            boxShadow: '0 12px 40px rgba(0,0,0,.18)',
+          }}>
+            {confirmTarget.blocked ? (
+              <Unlock size={32} style={{ color: 'var(--green)', marginBottom: 12 }} />
+            ) : (
+              <Lock size={32} style={{ color: 'var(--red-text)', marginBottom: 12 }} />
+            )}
+            <div className="abk-serif" style={{ fontSize: 17, fontWeight: 500, color: 'var(--ink)', marginBottom: 6 }}>
+              {confirmTarget.blocked ? t('loginHistory.allowDeviceTitle') : t('loginHistory.disallowDeviceTitle')}
+            </div>
+            <p style={{ fontSize: 13, color: 'var(--ink-light)', marginBottom: 4, fontWeight: 300 }}>
+              {confirmTarget.deviceName || t('loginHistory.unnamedDevice')} — <strong style={{ color: 'var(--ink)' }}>{confirmTarget.userEmail}</strong>
+            </p>
+            <p style={{ fontSize: 11.5, color: 'var(--ink-faint)', marginBottom: 20, fontWeight: 300 }}>
+              {confirmTarget.blocked ? t('loginHistory.allowDeviceDesc') : t('loginHistory.disallowDeviceDesc')}
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setConfirmTarget(null)} style={{
+                flex: 1, padding: '10px 0', background: 'var(--cream-deep)', color: 'var(--ink-mid)',
+                border: '1px solid var(--border)', borderRadius: 11, fontSize: 13, fontWeight: 500, cursor: 'pointer',
+              }}>{t('loginHistory.cancel')}</button>
+              <button onClick={() => toggleBlock(confirmTarget)} style={{
+                flex: 1, padding: '10px 0', color: '#fff', border: 'none', borderRadius: 11,
+                fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                background: confirmTarget.blocked ? 'var(--green)' : 'var(--red-text)',
+              }}>
+                {confirmTarget.blocked ? t('loginHistory.allow') : t('loginHistory.disallow')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

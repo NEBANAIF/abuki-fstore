@@ -80,8 +80,8 @@ api.interceptors.response.use(
 );
 
 // ── AUTH ───────────────────────────────────────────────────────────────────
-export const login  = (email, password) =>
-  api.post('/auth/login', { email, password }).then(r => r.data);
+export const login  = (email, password, deviceFingerprint) =>
+  api.post('/auth/login', { email, password, deviceFingerprint }).then(r => r.data);
 export const getMe  = () => api.get('/auth/me').then(r => r.data);
 
 // ── USERS (ADMIN only — returns 403 for WORKER) ───────────────────────────
@@ -92,6 +92,10 @@ export const deleteUser  = (id)       => api.delete(`/users/${id}`).then(r => r.
 
 // ── LOGIN HISTORY (ADMIN only — device/IP audit trail, read-only) ────────
 export const getLoginHistory = () => api.get('/login-history').then(r => r.data);
+
+// ── DEVICES (ADMIN only — rename / block / unblock specific devices) ─────
+export const getDevices   = ()         => api.get('/devices').then(r => r.data);
+export const updateDevice = (id, data) => api.put(`/devices/${id}`, data).then(r => r.data);
 
 // ── PRODUCTS ───────────────────────────────────────────────────────────────
 // GET endpoints are allowed for both ADMIN and WORKER
