@@ -113,20 +113,18 @@ const LOANS_CSS = `
   .abk-loans ::-webkit-scrollbar-track { background:transparent; }
   .abk-loans ::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }
 
-  @media (max-width:1023px) {
-    .abk-loans-kpi { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
-    /* 3rd card (odd one out) spans both columns and centers itself,
-       instead of sitting alone on the left with empty space beside it. */
-    .abk-loans-kpi > *:nth-child(3) { grid-column: 1 / -1 !important; max-width: 50% !important; margin: 0 auto !important; }
-  }
   @media (max-width:767px) {
     .abk-loans-pad  { padding: 1rem 0.75rem 3rem !important; }
-    .abk-loans-kpi  { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
-    .abk-loans-kpi > *:nth-child(3) { grid-column: 1 / -1 !important; max-width: 60% !important; margin: 0 auto !important; }
     .abk-loans-filter { flex-direction: column !important; }
     .abk-loans-filter > * { width: 100% !important; }
     .abk-loans-table-wrap { overflow-x: auto !important; -webkit-overflow-scrolling: touch !important; }
     .abk-loans-table-wrap table { min-width: 760px !important; }
+  }
+  @media (max-width:479px) {
+    .abk-loans-kpi-pair { grid-template-columns: 1fr !important; }
+    .abk-loans-hero { flex-direction: column !important; align-items: flex-start !important; }
+    .abk-loans-hero-ring { align-self: flex-end !important; margin-top: -8px !important; }
+    .abk-loans-hero-value { font-size: 30px !important; }
   }
   @media (max-width:767px) {
     input, select, textarea { font-size: 16px !important; }
@@ -239,6 +237,56 @@ function KpiCard({ label, value, sub, Icon, stripeColor, iconBg, iconColor, prog
           width: `${Math.max(2, progPct)}%`,
           animationDelay: `calc(${delay} + .5s)`,
         }} />
+      </div>
+    </div>
+  );
+}
+
+function HeroKpiCard({ label, value, sub, Icon, stripeColor, iconBg, iconColor, progPct, delay }) {
+  return (
+    <div className="abk-anim-fade-up abk-loans-hero" style={{
+      background: 'var(--card)', border: '1px solid var(--border)',
+      borderRadius: 16, padding: '1.4rem 1.5rem 1.2rem',
+      position: 'relative', overflow: 'hidden',
+      transition: 'background .3s, border-color .3s', animationDelay: delay,
+      boxShadow: '0 2px 10px rgba(0,0,0,.07)',
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 18,
+    }}>
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: stripeColor }} />
+
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+          <div style={{
+            width: 38, height: 38, borderRadius: 10, background: iconBg,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+          }}>
+            <Icon size={18} color={iconColor} />
+          </div>
+          <div style={{
+            fontSize: 11.5, fontWeight: 600, letterSpacing: '0.07em',
+            textTransform: 'uppercase', color: 'var(--ink-light)',
+          }}>{label}</div>
+        </div>
+
+        <div className="abk-serif abk-loans-hero-value" style={{
+          fontSize: 38, fontWeight: 700, color: iconColor, letterSpacing: -0.5,
+          lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+        }}>{value}</div>
+        <div style={{ fontSize: 11.5, color: 'var(--ink-faint)', fontWeight: 300, marginTop: 4 }}>{sub}</div>
+      </div>
+
+      <div className="abk-loans-hero-ring" style={{ flexShrink: 0 }}>
+        <div style={{
+          width: 64, height: 64, borderRadius: '50%',
+          background: `conic-gradient(${stripeColor} ${Math.max(2, progPct)}%, var(--cream-deep) 0)`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <div style={{
+            width: 48, height: 48, borderRadius: '50%', background: 'var(--card)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 12, fontWeight: 700, color: iconColor, fontFamily: 'DM Sans,sans-serif',
+          }}>{Math.max(2, progPct)}%</div>
+        </div>
       </div>
     </div>
   );
@@ -439,27 +487,30 @@ export default function Loans({ dark, user }) {
           </button>
         </div>
 
-        {/* ── KPI Cards ─────────────────────────────────────────────────── */}
-        <div className="abk-loans-kpi" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 10, marginBottom: '1.1rem' }}>
-          <KpiCard
+        {/* ── KPI Cards (hero + pair) ─────────────────────────────────────── */}
+        <div className="abk-loans-kpi-hero-wrap" style={{ marginBottom: '1.1rem' }}>
+          <HeroKpiCard
             label={t('loans.totalOutstanding')} value={`$${fmt(totalOutstanding)}`}
             sub={`${loans.length} ${t(loans.length !== 1 ? 'loans.openLoans' : 'loans.openLoan')}`}
             Icon={Landmark} stripeColor="var(--amber)" iconBg="var(--amber-bg)" iconColor="var(--amber)"
             progPct={totalSaleValue > 0 ? Math.round((totalOutstanding / totalSaleValue) * 100) : 2} delay=".06s"
           />
-          <KpiCard
-            label={t('loans.collectedSoFar')} value={`$${fmt(totalCollected)}`}
-            sub={t('loans.partialPaymentsReceived')}
-            Icon={CheckCircle} stripeColor="var(--green)" iconBg="var(--green-bg)" iconColor="var(--green)"
-            progPct={totalSaleValue > 0 ? Math.round((totalCollected / totalSaleValue) * 100) : 2} delay=".13s"
-          />
-          <KpiCard
-            label={t('loans.totalLoanValue')} value={`$${fmt(totalSaleValue)}`}
-            sub={t('loans.combinedSaleTotals')}
-            Icon={Landmark} stripeColor="var(--blue)" iconBg="var(--blue-bg)" iconColor="var(--blue)"
-            progPct={82} delay=".20s"
-          />
+          <div className="abk-loans-kpi-pair" style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 10, marginTop: 10 }}>
+            <KpiCard
+              label={t('loans.collectedSoFar')} value={`$${fmt(totalCollected)}`}
+              sub={t('loans.partialPaymentsReceived')}
+              Icon={CheckCircle} stripeColor="var(--green)" iconBg="var(--green-bg)" iconColor="var(--green)"
+              progPct={totalSaleValue > 0 ? Math.round((totalCollected / totalSaleValue) * 100) : 2} delay=".13s"
+            />
+            <KpiCard
+              label={t('loans.totalLoanValue')} value={`$${fmt(totalSaleValue)}`}
+              sub={t('loans.combinedSaleTotals')}
+              Icon={Landmark} stripeColor="var(--blue)" iconBg="var(--blue-bg)" iconColor="var(--blue)"
+              progPct={82} delay=".20s"
+            />
+          </div>
         </div>
+
 
         {/* ── Search & Date Filter ──────────────────────────────────────── */}
         <div className="abk-anim-fade-in abk-loans-filter" style={{ display: 'flex', gap: 8, marginBottom: '1rem', animationDelay: '.28s' }}>
