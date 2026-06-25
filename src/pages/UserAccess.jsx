@@ -58,7 +58,10 @@ const GLOBAL_CSS = `
 
   /* ── Responsive: tablet ── */
   @media (max-width:1023px) {
-    .abk-usr-kpi-4  { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
+    .abk-usr-kpi-5  { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
+    /* 5th card (odd one out in a 2-col layout) spans both columns and
+       centers itself, instead of sitting alone on the left. */
+    .abk-usr-kpi-5 > *:nth-child(5) { grid-column: 1 / -1 !important; max-width: 50% !important; margin: 0 auto !important; }
     .abk-usr-filter { flex-wrap: wrap !important; }
     .abk-usr-filter > * { min-width: 140px !important; }
     .abk-usr-modal-grid { grid-template-columns: 1fr !important; }
@@ -67,7 +70,8 @@ const GLOBAL_CSS = `
   /* ── Responsive: phone ── */
   @media (max-width:767px) {
     .abk-usr-pad    { padding: 1rem 0.75rem 3rem !important; }
-    .abk-usr-kpi-4  { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
+    .abk-usr-kpi-5  { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
+    .abk-usr-kpi-5 > *:nth-child(5) { grid-column: 1 / -1 !important; max-width: 60% !important; margin: 0 auto !important; }
     .abk-usr-filter { flex-direction: column !important; }
     .abk-usr-filter > * { width: 100% !important; }
     /* ── User Access table: horizontal scroll — all columns visible, no hiding ── */
@@ -79,11 +83,14 @@ const GLOBAL_CSS = `
 
   @media (max-width:480px) {
     .abk-usr-pad { padding: 0.75rem 0.5rem 2rem !important; }
-    .abk-usr-kpi-4 { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
+    .abk-usr-kpi-5 { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
   }
 
   @media (max-width:380px) {
-    .abk-usr-kpi-4 { grid-template-columns: 1fr !important; }
+    /* Below this width even 2 columns get cramped — drop to 1 column.
+       No centering needed since every card already spans the full row. */
+    .abk-usr-kpi-5 { grid-template-columns: 1fr !important; }
+    .abk-usr-kpi-5 > *:nth-child(5) { max-width: 100% !important; }
   }
   /* iOS: prevent zoom on input focus */
   @media (max-width:767px) {
@@ -92,10 +99,13 @@ const GLOBAL_CSS = `
 
 `;
 
-// Only two roles exist on the backend: ADMIN and WORKER (see SecurityConfig.java)
+// Three roles exist on the backend: ADMIN, WORKER, and SECURITY_ADMIN
+// (see SecurityConfig.java). SECURITY_ADMIN is intentionally narrow —
+// only loginHistory — so it doesn't quietly become a second admin.
 const ROLE_DEFAULTS = {
-  ADMIN:  ['dashboard','products','sales','loans','stock'],
-  WORKER: ['dashboard','products','sales','loans'],
+  ADMIN:          ['dashboard','products','sales','loans','stock'],
+  WORKER:         ['dashboard','products','sales','loans'],
+  SECURITY_ADMIN: ['loginHistory'],
 };
 
 const EMPTY_FORM = {
@@ -106,8 +116,9 @@ const EMPTY_FORM = {
 
 // Per-role color tokens using CSS vars
 const ROLE_COLORS = {
-  ADMIN:  { stripe: 'var(--red-text)', badge: { bg: 'var(--red-bg)',  border: 'var(--red-border)', text: 'var(--red-text)' }, avatar: '#ef4444' },
-  WORKER: { stripe: 'var(--blue)',     badge: { bg: 'var(--blue-bg)', border: 'var(--border)',     text: 'var(--blue)'     }, avatar: 'var(--blue)' },
+  ADMIN:          { stripe: 'var(--red-text)', badge: { bg: 'var(--red-bg)',  border: 'var(--red-border)', text: 'var(--red-text)' }, avatar: '#ef4444' },
+  WORKER:         { stripe: 'var(--blue)',     badge: { bg: 'var(--blue-bg)', border: 'var(--border)',     text: 'var(--blue)'     }, avatar: 'var(--blue)' },
+  SECURITY_ADMIN: { stripe: 'var(--purple)',   badge: { bg: 'var(--purple-bg)', border: 'var(--border)',   text: 'var(--purple)'   }, avatar: 'var(--purple)' },
 };
 
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
@@ -162,8 +173,9 @@ export default function UserAccess({ dark: darkProp }) {
   const dark = darkProp ?? (localStorage.getItem('abk-dark') === 'true');
 
   const ROLES = [
-    { value: 'ADMIN',  label: t('users.admins') || 'Admin',  desc: 'Full access to everything' },
+    { value: 'ADMIN',  label: t('users.admins') || 'Admin',  desc: 'Full business access — products, sales, loans, stock, users' },
     { value: 'WORKER', label: 'Worker',                       desc: 'Products, sales & stock-in — no user or history access' },
+    { value: 'SECURITY_ADMIN', label: 'Security Admin',       desc: 'Login history & device management only — no business access' },
   ];
 
   const PERMISSIONS = [
@@ -172,6 +184,7 @@ export default function UserAccess({ dark: darkProp }) {
     { key: 'sales',     label: t('nav.sales')     },
     { key: 'loans',     label: t('nav.loans') || 'Loans' },
     { key: 'stock',     label: t('nav.stock')     },
+    { key: 'loginHistory', label: t('nav.loginHistory') || 'Login History' },
   ];
 
   const [users, setUsers]                 = useState([]);
@@ -215,6 +228,7 @@ export default function UserAccess({ dark: darkProp }) {
   const activeCount  = users.filter(u => u.status === 'ACTIVE').length;
   const adminCount  = users.filter(u => u.role === 'ADMIN').length;
   const workerCount = users.filter(u => u.role === 'WORKER').length;
+  const securityAdminCount = users.filter(u => u.role === 'SECURITY_ADMIN').length;
 
   function openCreate() { setEditUser(null); setForm(EMPTY_FORM); setShowPassword(false); setShowModal(true); }
   function openEdit(u) {
@@ -325,11 +339,12 @@ export default function UserAccess({ dark: darkProp }) {
         </div>
 
         {/* ── KPI Cards ─────────────────────────────────────────────────── */}
-        <div className="abk-usr-kpi-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,minmax(0,1fr))', gap: 10, marginBottom: '1.1rem' }}>
+        <div className="abk-usr-kpi-5" style={{ display: 'grid', gridTemplateColumns: 'repeat(5,minmax(0,1fr))', gap: 10, marginBottom: '1.1rem' }}>
           <KpiCard label={t('users.totalUsers')}  value={users.length}  Icon={Users}       stripeColor="var(--blue)"   iconBg="var(--blue-bg)"   iconColor="var(--blue)"   progPct={70} delay=".06s" />
           <KpiCard label={t('users.activeUsers')} value={activeCount}   Icon={CheckCircle} stripeColor="var(--green)"  iconBg="var(--green-bg)"  iconColor="var(--green)"  progPct={Math.round(activeCount / Math.max(users.length, 1) * 100)} delay=".13s" />
           <KpiCard label={t('users.admins')}      value={adminCount}    Icon={Shield}      stripeColor="var(--red-text)" iconBg="var(--red-bg)" iconColor="var(--red-text)" progPct={Math.round(adminCount / Math.max(users.length, 1) * 100)} delay=".20s" />
           <KpiCard label="Workers"                value={workerCount}   Icon={User}        stripeColor="var(--purple)" iconBg="var(--purple-bg)" iconColor="var(--purple)" progPct={Math.round(workerCount / Math.max(users.length, 1) * 100)} delay=".27s" />
+          <KpiCard label="Security Admins"        value={securityAdminCount} Icon={Lock}   stripeColor="var(--blue)" iconBg="var(--blue-bg)" iconColor="var(--blue)" progPct={Math.round(securityAdminCount / Math.max(users.length, 1) * 100)} delay=".34s" />
         </div>
 
         {/* ── Tab Toggle ────────────────────────────────────────────────── */}

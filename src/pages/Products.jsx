@@ -134,6 +134,9 @@ const PRODUCTS_CSS = `
   /* ── Responsive: tablet ── */
   @media (max-width:1023px) {
     .abk-prod-kpi-4   { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
+    /* 3rd card (odd one out) spans both columns and centers itself,
+       instead of sitting alone on the left with empty space beside it. */
+    .abk-prod-kpi-4 > *:nth-child(3) { grid-column: 1 / -1 !important; max-width: 50% !important; margin: 0 auto !important; }
     .abk-prod-filter  { flex-wrap: wrap !important; }
     .abk-prod-filter > * { min-width: 140px !important; }
     .abk-prod-modal-grid { grid-template-columns: 1fr !important; }
@@ -143,6 +146,7 @@ const PRODUCTS_CSS = `
   @media (max-width:767px) {
     .abk-prod-pad     { padding: 1rem 0.75rem 3rem !important; }
     .abk-prod-kpi-4   { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
+    .abk-prod-kpi-4 > *:nth-child(3) { grid-column: 1 / -1 !important; max-width: 60% !important; margin: 0 auto !important; }
     .abk-prod-filter  { flex-direction: column !important; }
     .abk-prod-filter > * { width: 100% !important; }
     .abk-prod-header  { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
@@ -170,12 +174,15 @@ const PRODUCTS_CSS = `
 
   @media (max-width:480px) {
     .abk-prod-pad { padding: 0.75rem 0.5rem 2rem !important; }
-    /* Keep KPI at 2-col on small phones */
+    /* Keep KPI at 2-col on small phones; 3rd card still centered via the rule above */
     .abk-prod-kpi-4 { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
   }
 
   @media (max-width:380px) {
+    /* Below this width even 2 columns get cramped — drop to 1 column.
+       No centering needed here since every card already spans the full row. */
     .abk-prod-kpi-4 { grid-template-columns: 1fr !important; }
+    .abk-prod-kpi-4 > *:nth-child(3) { max-width: 100% !important; }
   }
   /* iOS: prevent zoom on input focus */
   @media (max-width:767px) {

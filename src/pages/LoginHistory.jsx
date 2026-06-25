@@ -113,7 +113,7 @@ const LH_CSS = `
   @media (max-width:767px) {
     .abk-lh-pad { padding: 1rem 0.75rem 3rem !important; }
     .abk-lh-table-wrap { overflow-x: auto !important; -webkit-overflow-scrolling: touch !important; }
-    .abk-lh-table-wrap table { min-width: 820px !important; }
+    .abk-lh-table-wrap table { min-width: 900px !important; table-layout: auto !important; }
     input, select, textarea { font-size: 16px !important; }
   }
 `;
@@ -330,8 +330,8 @@ export default function LoginHistory({ dark }) {
             <span style={{ fontSize: 11, color: 'var(--ink-faint)', fontWeight: 300 }}>{filtered.length} {t('loginHistory.records')}</span>
           </div>
 
-          <div className="abk-lh-table-wrap" style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', minWidth: 'max-content', borderCollapse: 'collapse' }}>
+          <div className="abk-lh-table-wrap" style={{ overflowX: 'auto', width: '100%', display: 'block', borderRadius: '0 0 16px 16px' }}>
+            <table style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: 'var(--cream-deep)', borderBottom: '1px solid var(--border)' }}>
                   {[t('loginHistory.user'), t('loginHistory.deviceName'), t('loginHistory.device'), t('loginHistory.ipAddress'), t('loginHistory.lastSeen'), t('loginHistory.status'), t('loginHistory.actions')].map(h => (
@@ -357,12 +357,12 @@ export default function LoginHistory({ dark }) {
                   return (
                     <tr key={d.id} className="abk-row-hover" style={{ borderBottom: '1px solid var(--border-light)', background: 'var(--card)' }}>
                       {/* User */}
-                      <td style={{ padding: '12px 14px' }}>
+                      <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
                         <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{d.userEmail || '—'}</div>
                       </td>
 
                       {/* Device Name — editable */}
-                      <td style={{ padding: '12px 14px', minWidth: 170 }}>
+                      <td style={{ padding: '12px 14px', minWidth: 170, whiteSpace: 'nowrap' }}>
                         {isEditing ? (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             <input
@@ -372,7 +372,7 @@ export default function LoginHistory({ dark }) {
                               onKeyDown={e => { if (e.key === 'Enter') saveEdit(d); if (e.key === 'Escape') setEditingId(null); }}
                               placeholder={t('loginHistory.deviceNamePlaceholder')}
                               className="abk-input"
-                              style={{ width: 140 }}
+                              style={{ width: 140, flexShrink: 0 }}
                             />
                             <button onClick={() => saveEdit(d)} disabled={isSaving} title={t('loginHistory.save')} style={{
                               width: 26, height: 26, borderRadius: 7, border: 'none', background: 'var(--green)',
@@ -386,7 +386,7 @@ export default function LoginHistory({ dark }) {
                           </div>
                         ) : (
                           <div className="abk-row-hover" style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }} onClick={() => startEdit(d)}>
-                            <span style={{ fontSize: 13, fontWeight: d.deviceName ? 600 : 400, color: d.deviceName ? 'var(--ink)' : 'var(--ink-faint)', fontStyle: d.deviceName ? 'normal' : 'italic' }}>
+                            <span style={{ fontSize: 13, fontWeight: d.deviceName ? 600 : 400, color: d.deviceName ? 'var(--ink)' : 'var(--ink-faint)', fontStyle: d.deviceName ? 'normal' : 'italic', whiteSpace: 'nowrap' }}>
                               {d.deviceName || t('loginHistory.unnamedDevice')}
                             </span>
                             <Pencil size={11} style={{ color: 'var(--ink-faint)', flexShrink: 0 }} />
@@ -395,7 +395,7 @@ export default function LoginHistory({ dark }) {
                       </td>
 
                       {/* Browser/OS — auto-detected, read-only */}
-                      <td style={{ padding: '12px 14px' }} title={d.lastUserAgent || ''}>
+                      <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }} title={d.lastUserAgent || ''}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <div style={{
                             width: 28, height: 28, borderRadius: 8, background: 'var(--blue-bg)',
@@ -404,14 +404,14 @@ export default function LoginHistory({ dark }) {
                             <Icon size={14} style={{ color: 'var(--blue)' }} />
                           </div>
                           <div>
-                            <div style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--ink)' }}>{label}</div>
-                            <div style={{ fontSize: 10.5, color: 'var(--ink-faint)', fontWeight: 300 }}>{deviceType}</div>
+                            <div style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--ink)', whiteSpace: 'nowrap' }}>{label}</div>
+                            <div style={{ fontSize: 10.5, color: 'var(--ink-faint)', fontWeight: 300, whiteSpace: 'nowrap' }}>{deviceType}</div>
                           </div>
                         </div>
                       </td>
 
                       {/* IP Address */}
-                      <td style={{ padding: '12px 14px' }}>
+                      <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
                         <span style={{ fontFamily: 'monospace', fontSize: 12.5, color: 'var(--ink-mid)' }}>
                           {d.lastIpAddress || '—'}
                         </span>
@@ -424,10 +424,11 @@ export default function LoginHistory({ dark }) {
                       </td>
 
                       {/* Status badge */}
-                      <td style={{ padding: '12px 14px' }}>
+                      <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
                         <span style={{
                           display: 'inline-flex', alignItems: 'center', gap: 4,
                           padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600,
+                          whiteSpace: 'nowrap',
                           background: d.blocked ? 'var(--red-bg)' : 'var(--green-bg)',
                           color: d.blocked ? 'var(--red-text)' : 'var(--green)',
                           border: `1px solid ${d.blocked ? 'var(--red-border)' : 'var(--border)'}`,
@@ -438,7 +439,7 @@ export default function LoginHistory({ dark }) {
                       </td>
 
                       {/* Allow / Disallow action */}
-                      <td style={{ padding: '12px 14px' }}>
+                      <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
                         <button
                           onClick={() => setConfirmTarget(d)}
                           disabled={isSaving}
@@ -446,7 +447,7 @@ export default function LoginHistory({ dark }) {
                             display: 'inline-flex', alignItems: 'center', gap: 5,
                             padding: '7px 13px', borderRadius: 9, fontSize: 12, fontWeight: 500,
                             border: 'none', cursor: isSaving ? 'not-allowed' : 'pointer',
-                            opacity: isSaving ? .6 : 1,
+                            opacity: isSaving ? .6 : 1, whiteSpace: 'nowrap',
                             background: d.blocked ? 'var(--green)' : 'var(--red-text)',
                             color: '#fff',
                           }}

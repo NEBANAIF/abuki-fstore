@@ -115,10 +115,14 @@ const LOANS_CSS = `
 
   @media (max-width:1023px) {
     .abk-loans-kpi { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
+    /* 3rd card (odd one out) spans both columns and centers itself,
+       instead of sitting alone on the left with empty space beside it. */
+    .abk-loans-kpi > *:nth-child(3) { grid-column: 1 / -1 !important; max-width: 50% !important; margin: 0 auto !important; }
   }
   @media (max-width:767px) {
     .abk-loans-pad  { padding: 1rem 0.75rem 3rem !important; }
     .abk-loans-kpi  { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
+    .abk-loans-kpi > *:nth-child(3) { grid-column: 1 / -1 !important; max-width: 60% !important; margin: 0 auto !important; }
     .abk-loans-filter { flex-direction: column !important; }
     .abk-loans-filter > * { width: 100% !important; }
     .abk-loans-table-wrap { overflow-x: auto !important; -webkit-overflow-scrolling: touch !important; }

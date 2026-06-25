@@ -129,6 +129,7 @@ const GLOBAL_CSS = `
     .abk-dash-nav-5  { grid-template-columns: repeat(3,minmax(0,1fr)) !important; }
     .abk-dash-mid    { grid-template-columns: 1fr !important; }
     .abk-dash-bot-3  { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
+    .abk-dash-bot-3 > *:nth-child(3) { grid-column: 1 / -1 !important; max-width: 50% !important; margin: 0 auto !important; }
     .abk-dash-feat-4 { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
   }
 
